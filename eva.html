@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EVA - Assistente da FlowBoss</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+  <style>
+    :root {
+      /* Modern Color Palette - FlowBoss Theme */
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --primary-light: #818cf8;
+      --secondary: #0f172a;
+      --accent: #06b6d4;
+      --light-bg: #f8fafc;
+      --gray-light: #e2e8f0;
+      --gray-medium: #94a3b8;
+      --text-dark: #1e293b;
+      --text-light: #f8fafc;
+      
+      /* Spacing Variables */
+      --space-xs: 4px;
+      --space-sm: 8px;
+      --space-md: 16px;
+      --space-lg: 24px;
+      --space-xl: 32px;
+      
+      /* Border Radius */
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-full: 9999px;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: var(--text-dark);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    #widget-button {
+      position: fixed;
+      bottom: var(--space-lg);
+      right: var(--space-lg);
+      background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+      color: var(--text-light);
+      border: none;
+      border-radius: var(--radius-full);
+      width: 65px;
+      height: 65px;
+      font-size: 26px;
+      cursor: pointer;
+      box-shadow: 0 10px 25px rgba(99, 102, 241, 0.3);
+      z-index: 1000;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    #widget-button:hover {
+      transform: translateY(-4px) scale(1.05);
+      box-shadow: 0 15px 35px rgba(99, 102, 241, 0.4);
+    }
+    
+    #widget-button.open {
+      transform: rotate(135deg) scale(1.05);
+    }
+
+    #chat-container {
+      display: none;
+      flex-direction: column;
+      width: 400px;
+      height: 600px;
+      position: fixed;
+      bottom: calc(var(--space-lg) + 80px);
+      right: var(--space-lg);
+      background: white;
+      border-radius: var(--radius-lg);
+      box-shadow: 0 20px 50px rgba(15, 23, 42, 0.15);
+      overflow: hidden;
+      z-index: 999;
+      opacity: 0;
+      transform: translateY(30px) scale(0.95);
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      border: 1px solid rgba(99, 102, 241, 0.1);
+    }
+    
+    #chat-container.active {
+      display: flex;
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    #chat-header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+      color: var(--text-light);
+      padding: var(--space-md) var(--space-lg);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top-left-radius: var(--radius-lg);
+      border-top-right-radius: var(--radius-lg);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    #chat-header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+      opacity: 0.3;
+    }
+    
+    .header-title {
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+      font-weight: 700;
+      font-size: 18px;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .header-title .eva-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-full);
+      background: rgba(255, 255, 255, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      backdrop-filter: blur(10px);
+    }
+    
+    .header-actions {
+      display: flex;
+      gap: var(--space-sm);
+      align-items: center;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .header-button {
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: var(--text-light);
+      cursor: pointer;
+      font-size: 16px;
+      transition: all 0.2s ease;
+      padding: var(--space-sm);
+      border-radius: var(--radius-sm);
+      backdrop-filter: blur(10px);
+    }
+    
+    .header-button:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: scale(1.1);
+    }
+
+    /* Language selector styles */
+    .lang-selector {
+      display: flex;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: var(--radius-md);
+      margin-right: var(--space-md);
+      overflow: hidden;
+      backdrop-filter: blur(10px);
+    }
+    
+    .lang-button {
+      background: transparent;
+      border: none;
+      color: rgba(255, 255, 255, 0.8);
+      padding: 6px 12px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+    
+    .lang-button.active {
+      background: rgba(255, 255, 255, 0.25);
+      color: white;
+    }
+    
+    .lang-button:hover:not(.active) {
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+    }
+
+    #chat {
+      flex: 1;
+      padding: var(--space-lg);
+      overflow-y: auto;
+      background: var(--light-bg);
+      scroll-behavior: smooth;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+    }
+    
+    .msg-container {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+      max-width: 85%;
+      animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    
+    @keyframes slideIn {
+      from { 
+        opacity: 0; 
+        transform: translateY(15px);
+      }
+      to { 
+        opacity: 1; 
+        transform: translateY(0);
+      }
+    }
+    
+    .user-container {
+      align-self: flex-end;
+    }
+    
+    .bot-container {
+      align-self: flex-start;
+    }
+    
+    .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-full);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      color: white;
+      font-weight: bold;
+    }
+    
+    .msg-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+    
+    .bot-avatar {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+    
+    .user-avatar {
+      background: linear-gradient(135deg, var(--secondary) 0%, #475569 100%);
+      align-self: flex-end;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.3);
+    }
+    
+    .msg {
+      padding: var(--space-md) var(--space-lg);
+      border-radius: var(--radius-md);
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      white-space: pre-wrap;
+      position: relative;
+      backdrop-filter: blur(10px);
+    }
+
+    .user {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: white;
+      border-top-right-radius: 6px;
+      box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+    }
+
+    .bot {
+      background: white;
+      color: var(--text-dark);
+      border-top-left-radius: 6px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+      border: 1px solid rgba(99, 102, 241, 0.1);
+    }
+
+    .timestamp {
+      font-size: 0.7rem;
+      color: var(--gray-medium);
+      text-align: right;
+      margin-top: var(--space-xs);
+    }
+
+    .typing-indicator {
+      display: flex;
+      padding: var(--space-md) var(--space-lg);
+      background: white;
+      border-radius: var(--radius-md);
+      width: fit-content;
+      align-items: center;
+      column-gap: var(--space-xs);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+      border: 1px solid rgba(99, 102, 241, 0.1);
+    }
+    
+    .typing-dot {
+      width: 8px;
+      height: 8px;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+      border-radius: 50%;
+      animation: typing-animation 1.4s infinite ease-in-out both;
+    }
+    
+    .typing-dot:nth-child(1) {
+      animation-delay: -0.32s;
+    }
+    
+    .typing-dot:nth-child(2) {
+      animation-delay: -0.16s;
+    }
+    
+    @keyframes typing-animation {
+      0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+
+    #form {
+      display: flex;
+      padding: var(--space-lg);
+      background: white;
+      align-items: flex-end;
+      border-top: 1px solid var(--gray-light);
+      position: relative;
+    }
+
+    #mensagem {
+      flex: 1;
+      padding: var(--space-md) var(--space-lg);
+      border-radius: var(--radius-md);
+      border: 2px solid var(--gray-light);
+      margin-right: var(--space-md);
+      resize: none;
+      font-family: inherit;
+      font-size: 14px;
+      overflow-y: auto;
+      max-height: 120px;
+      line-height: 1.5;
+      transition: all 0.3s ease;
+      background: var(--light-bg);
+    }
+    
+    #mensagem:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+      background: white;
+    }
+
+    #send-button {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+      color: white;
+      width: 45px;
+      height: 45px;
+      border: none;
+      border-radius: var(--radius-full);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      font-size: 16px;
+      box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+    }
+    
+    #send-button:hover {
+      transform: translateY(-2px) scale(1.05);
+      box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4);
+    }
+    
+    #send-button:active {
+      transform: translateY(0) scale(1);
+    }
+    
+    .chat-footer {
+      padding: var(--space-md);
+      text-align: center;
+      font-size: 12px;
+      color: var(--gray-medium);
+      border-top: 1px solid var(--gray-light);
+      background: linear-gradient(45deg, #f8fafc 0%, #f1f5f9 100%);
+      font-weight: 500;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 480px) {
+      #chat-container {
+        width: calc(100vw - 32px);
+        height: calc(100vh - 120px);
+        right: 16px;
+        bottom: 90px;
+      }
+      
+      #widget-button {
+        right: 16px;
+        bottom: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <button id="widget-button"><i class="fas fa-brain"></i></button>
+
+  <div id="chat-container">
+    <div id="chat-header">
+      <div class="header-title">
+        <div class="eva-icon">
+          <i class="fas fa-robot"></i>
+        </div>
+        <span>EVA - FlowBoss Assistant</span>
+      </div>
+      <div class="header-actions">
+        <!-- Language selector -->
+        <div class="lang-selector">
+          <button class="lang-button active" data-lang="pt">PT</button>
+          <button class="lang-button" data-lang="en">EN</button>
+        </div>
+        <button class="header-button" id="minimize-btn"><i class="fas fa-minus"></i></button>
+      </div>
+    </div>
+    
+    <div id="chat"></div>
+    
+    <form id="form">
+      <textarea id="mensagem" placeholder="Digite sua mensagem..." rows="1"></textarea>
+      <button type="submit" id="send-button"><i class="fas fa-paper-plane"></i></button>
+    </form>
+    
+    <div class="chat-footer">
+      Powered by FlowBoss © 2025
+    </div>
+  </div>
+
+  <script>
+    const chat = document.getElementById('chat');
+    const form = document.getElementById('form');
+    const input = document.getElementById('mensagem');
+    const widgetButton = document.getElementById('widget-button');
+    const chatContainer = document.getElementById('chat-container');
+    const minimizeBtn = document.getElementById('minimize-btn');
+    const langButtons = document.querySelectorAll('.lang-button');
+    
+    // Generate a unique conversation ID on page load
+    const conversationId = `conv_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    console.log("New conversation started with ID:", conversationId);
+    
+    // Set default language to Portuguese
+    let userLanguage = 'pt';
+    
+    // Language selection
+    langButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        // Update active button
+        langButtons.forEach(btn => btn.classList.remove('active'));
+        button.classList.add('active');
+        
+        // Set language
+        userLanguage = button.getAttribute('data-lang');
+        console.log(`Language switched to: ${userLanguage}`);
+        
+        // Update placeholder text based on language
+        updatePlaceholder();
+        
+        // Update welcome message
+        updateFirstMessage();
+      });
+    });
+    
+    // Update placeholder text based on selected language
+    function updatePlaceholder() {
+      if (userLanguage === 'pt') {
+        input.placeholder = "Digite sua mensagem...";
+      } else {
+        input.placeholder = "Type your message...";
+      }
+    }
+
+    const historico = [
+      {
+        role: 'assistant',
+        content: 'Olá! 🤖 Eu sou a EVA, assistente inteligente da FlowBoss. Como posso te ajudar hoje?'
+      }
+    ];
+
+    const gerarHorario = () => {
+      const agora = new Date();
+      const horas = agora.getHours().toString().padStart(2, '0');
+      const minutos = agora.getMinutes().toString().padStart(2, '0');
+      return `${horas}:${minutos}`;
+    };
+
+    const adicionarMsg = (texto, classe) => {
+      const container = document.createElement('div');
+      container.className = `msg-container ${classe === 'user' ? 'user-container' : 'bot-container'}`;
+      
+      // Header with avatar
+      const header = document.createElement('div');
+      header.className = 'msg-header';
+      
+      if (classe !== 'user') {
+        const avatar = document.createElement('div');
+        avatar.className = 'avatar bot-avatar';
+        avatar.innerHTML = '<i class="fas fa-brain"></i>';
+        header.appendChild(avatar);
+      } else {
+        const avatar = document.createElement('div');
+        avatar.className = 'avatar user-avatar';
+        avatar.innerHTML = '<i class="fas fa-user"></i>';
+        header.appendChild(avatar);
+      }
+      
+      container.appendChild(header);
+      
+      // Message bubble
+      const div = document.createElement('div');
+      div.className = `msg ${classe}`;
+
+      const conteudo = document.createElement('div');
+      if (classe === 'bot') {
+        conteudo.innerHTML = texto;
+      } else {
+        conteudo.textContent = texto;
+      }
+
+      div.appendChild(conteudo);
+      container.appendChild(div);
+      
+      // Timestamp
+      const horario = document.createElement('div');
+      horario.className = 'timestamp';
+      horario.textContent = gerarHorario();
+      container.appendChild(horario);
+      
+      chat.appendChild(container);
+      chat.scrollTop = chat.scrollHeight;
+    };
+    
+    const adicionarTypingIndicator = () => {
+      const container = document.createElement('div');
+      container.className = 'msg-container bot-container';
+      container.id = 'typing-container';
+      
+      const header = document.createElement('div');
+      header.className = 'msg-header';
+      
+      const avatar = document.createElement('div');
+      avatar.className = 'avatar bot-avatar';
+      avatar.innerHTML = '<i class="fas fa-brain"></i>';
+      header.appendChild(avatar);
+      
+      container.appendChild(header);
+      
+      const indicator = document.createElement('div');
+      indicator.className = 'typing-indicator';
+      
+      for (let i = 0; i < 3; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'typing-dot';
+        indicator.appendChild(dot);
+      }
+      
+      container.appendChild(indicator);
+      chat.appendChild(container);
+      chat.scrollTop = chat.scrollHeight;
+      
+      return container;
+    };
+
+    widgetButton.addEventListener('click', () => {
+      chatContainer.classList.toggle('active');
+      widgetButton.classList.toggle('open');
+    });
+    
+    minimizeBtn.addEventListener('click', () => {
+      chatContainer.classList.remove('active');
+      widgetButton.classList.remove('open');
+    });
+
+    // Update first message based on selected language
+    function updateFirstMessage() {
+      // Clear chat
+      chat.innerHTML = '';
+      
+      // Add welcome message in correct language
+      if (userLanguage === 'pt') {
+        adicionarMsg('Olá! 🤖 Eu sou a <strong>EVA</strong>, da <strong>FlowBoss - Agência de Agentes de Conversa Inteligentes</strong>. Como posso tornar suas conversas mais inteligentes hoje?', 'bot');
+      } else {
+        adicionarMsg('Hello! 🤖 I\'m <strong>EVA</strong>, from <strong>FlowBoss - Intelligent Conversation Agents Agency</strong>. How can I make your conversations smarter today?', 'bot');
+      }
+      
+      // Reset conversation history
+      historico.length = 0;
+      historico.push({
+        role: 'assistant',
+        content: userLanguage === 'pt' 
+          ? 'Olá! 🤖 Eu sou a EVA, assistente inteligente da FlowBoss. Como posso te ajudar hoje?' 
+          : 'Hello! 🤖 I\'m EVA, intelligent assistant from FlowBoss. How can I help you today?'
+      });
+    }
+
+    // Initial welcome message
+    adicionarMsg('Olá! 🤖 Eu sou a <strong>EVA</strong>, da <strong>FlowBoss - Agência de Agentes de Conversa Inteligentes</strong>. Como posso tornar suas conversas mais inteligentes hoje?', 'bot');
+
+    input.addEventListener('input', () => {
+      input.style.height = 'auto';
+      input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+    });
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        form.dispatchEvent(new Event('submit'));
+      }
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msg = input.value.trim();
+      if (!msg) return;
+
+      adicionarMsg(msg, 'user');
+      historico.push({ role: 'user', content: msg });
+      input.value = '';
+      input.style.height = 'auto';
+
+      const typingIndicator = adicionarTypingIndicator();
+
+      try {
+        console.log('Enviando requisição para o servidor com:', {
+          mensagem: msg,
+          historico: historico.length + ' mensagens',
+          conversationId,
+          initialLanguage: userLanguage
+        });
+        
+       
+        const resposta = await fetch('http://localhost:3000/api/gpt-flowboss', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            mensagem: msg,
+            historico,
+            conversationId,
+            initialLanguage: userLanguage
+          }),
+        });
+        
+        console.log('Status da resposta:', resposta.status);
+        
+        if (!resposta.ok) {
+          const errorText = await resposta.text();
+          console.error('Erro do servidor:', errorText);
+          throw new Error(`Erro ${resposta.status}: ${errorText}`);
+        }
+        
+        const json = await resposta.json();
+        chat.removeChild(typingIndicator);
+
+        const respostaTexto = json.resposta || '[Erro ao responder]';
+        adicionarMsg(respostaTexto, 'bot');
+
+        historico.push({ role: 'assistant', content: respostaTexto });
+      } catch (err) {
+        console.error('Erro na comunicação:', err);
+        chat.removeChild(typingIndicator);
+        
+        // Mensagem de erro personalizada para EVA
+        const errorMsg = userLanguage === 'pt' 
+          ? `Ops! Parece que estou com dificuldades para processar sua solicitação. Que tal tentar novamente? 🤖💭`
+          : `Oops! I'm having trouble processing your request. How about trying again? 🤖💭`;
+        
+        adicionarMsg(errorMsg, 'bot');
+      }
+    });
+
+    // Click outside to close
+    document.addEventListener('click', (e) => {
+      if (!chatContainer.contains(e.target) && !widgetButton.contains(e.target)) {
+        chatContainer.classList.remove('active');
+        widgetButton.classList.remove('open');
+      }
+    });
+  </script>
+</body>
+</html>
